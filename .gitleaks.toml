@@ -1,0 +1,14 @@
+[allowlist]
+  description = "Supabase anon/public keys are safe to commit — they are designed for client-side use"
+  regexTarget = "line"
+  regexes = [
+    # Supabase anon (public) JWT — role claim is "anon", not a secret
+    '''eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]*"role":"anon"[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+''',
+    # Supabase publishable keys (sb_publishable_*)
+    '''sb_publishable_[A-Za-z0-9_-]+''',
+  ]
+  paths = [
+    '''supabase_config\.dart''',
+    '''client\.js''',
+    '''\.env\.example''',
+  ]

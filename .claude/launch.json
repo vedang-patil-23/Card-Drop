@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Netlify Profile (Vite Dev)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "netlify_profile"],
+      "port": 5173
+    }
+  ]
+}
