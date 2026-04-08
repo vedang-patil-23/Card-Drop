@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../models/profile_model.dart';
 import '../models/contact_model.dart';
 import '../models/lead_model.dart';
+import '../models/event_model.dart';
 import '../models/analytics_model.dart';
 
 /// Single access point for all Supabase operations.
@@ -95,6 +96,44 @@ class SupabaseService {
     await _client.from('leads').delete().eq('id', leadId);
   }
 
+  Future<void> archiveLead(String leadId, bool archived) async {
+    await _client
+        .from('leads')
+        .update({'archived': archived})
+        .eq('id', leadId);
+  }
+
+  // ── Events ─────────────────────────────────────────────────────────────────
+
+  Future<void> saveEvent(EventModel event) async {
+    await _client.from('events').upsert(event.toSupabase());
+  }
+
+  Future<List<EventModel>> fetchEvents(String profileId) async {
+    final rows = await _client
+        .from('events')
+        .select()
+        .eq('owner_profile_id', profileId)
+        .order('created_at', ascending: false);
+    return rows.map((r) => EventModel.fromSupabase(r)).toList();
+  }
+
+  Future<void> updateEventName(String eventId, String name) async {
+    await _client
+        .from('events')
+        .update({'name': name})
+        .eq('id', eventId);
+  }
+
+  Future<void> deleteEvent(String eventId) async {
+    // Clear event_id from leads referencing this event
+    await _client
+        .from('leads')
+        .update({'event_id': ''})
+        .eq('event_id', eventId);
+    await _client.from('events').delete().eq('id', eventId);
+  }
+
   // ── Contacts ───────────────────────────────────────────────────────────────
 
   Future<void> saveContact(String ownerProfileId, ContactModel contact) async {
@@ -181,6 +220,12 @@ class SupabaseService {
       last30.add(DailyViews(date: d, count: dailyMap[_dateKey(d)] ?? 0));
     }
 
+    // Most recent 20 viewers (newest first)
+    final recentViewers = ([...views]
+      ..sort((a, b) => b.viewedAt.compareTo(a.viewedAt)))
+      .take(20)
+      .toList();
+
     return AnalyticsSummary(
       totalViews:     views.length,
       totalLeads:     leadsCount,
@@ -188,8 +233,10 @@ class SupabaseService {
       viewsToday:     views.where((v) => v.viewedAt.isAfter(today)).length,
       viewsThisWeek:  views.where((v) => v.viewedAt.isAfter(weekAgo)).length,
       viewsThisMonth: views.where((v) => v.viewedAt.isAfter(monthAgo)).length,
+      contactSaves:   views.where((v) => v.contactSaved).length,
       viewsBySource:  bySource,
       last30Days:     last30,
+      recentViewers:  recentViewers,
     );
   }
 

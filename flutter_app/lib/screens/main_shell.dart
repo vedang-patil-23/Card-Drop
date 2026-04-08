@@ -1,170 +1,167 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+import 'package:flutter/services.dart';
 import 'home_screen.dart';
-import 'qr_screen.dart';
-import 'contacts_screen.dart';
 import 'leads_screen.dart';
-import 'analytics_screen.dart';
+import 'settings_screen.dart';
+import 'share_screen.dart';
 
-/// Main bottom-navigation shell that hosts the 5 primary screens.
-///
-/// Screens are kept alive via [IndexedStack] so state is preserved when
-/// the user switches tabs.
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
-
   @override
   State<MainShell> createState() => _MainShellState();
 }
 
 class _MainShellState extends State<MainShell> {
-  int _currentIndex = 0;
+  int _tab        = 0;
+  int _leadsEpoch = 0;
 
-  static const List<_NavItem> _navItems = [
-    _NavItem(
-      label:      'Card',
-      icon:       Icons.credit_card_outlined,
-      activeIcon: Icons.credit_card_rounded,
-    ),
-    _NavItem(
-      label:      'QR',
-      icon:       Icons.qr_code_rounded,
-      activeIcon: Icons.qr_code_rounded,
-    ),
-    _NavItem(
-      label:      'Contacts',
-      icon:       Icons.people_outline_rounded,
-      activeIcon: Icons.people_rounded,
-    ),
-    _NavItem(
-      label:      'Leads',
-      icon:       Icons.assignment_outlined,
-      activeIcon: Icons.assignment_rounded,
-    ),
-    _NavItem(
-      label:      'Analytics',
-      icon:       Icons.bar_chart_outlined,
-      activeIcon: Icons.bar_chart_rounded,
-    ),
-  ];
+  void _onTab(int i) {
+    HapticFeedback.selectionClick();
+    if (i == 1) setState(() => _leadsEpoch++);
+    setState(() => _tab = i);
+  }
 
-  static const List<Widget> _screens = [
-    HomeScreen(),
-    QrScreen(),
-    ContactsScreen(),
-    LeadsScreen(),
-    AnalyticsScreen(),
-  ];
+  void _openShare() {
+    HapticFeedback.lightImpact();
+    Navigator.of(context).push(_slideUp(const ShareScreen()));
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: _buildNavBar(),
-    );
-  }
-
-  Widget _buildNavBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: const Border(
-          top: BorderSide(color: AppColors.border, width: 1),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
-          ),
+        index: _tab,
+        children: [
+          const HomeScreen(),
+          LeadsScreen(key: ValueKey('leads-$_leadsEpoch')),
+          const SettingsScreen(),
         ],
       ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(
-              _navItems.length,
-              (i) => _NavBarItem(
-                item:   _navItems[i],
-                active: _currentIndex == i,
-                onTap:  () => setState(() => _currentIndex = i),
-              ),
-            ),
-          ),
-        ),
+      bottomNavigationBar: _NavBar(
+        current: _tab,
+        onTab: _onTab,
+        onShare: _openShare,
       ),
     );
   }
 }
 
-// ── Nav bar item ──────────────────────────────────────────────────────────────
+Route<dynamic> _slideUp(Widget page) => PageRouteBuilder(
+  fullscreenDialog: true,
+  pageBuilder: (_, __, ___) => page,
+  transitionsBuilder: (_, a, __, child) => SlideTransition(
+    position: Tween(begin: const Offset(0, 1), end: Offset.zero)
+        .animate(CurvedAnimation(parent: a, curve: Curves.easeOutCubic)),
+    child: child,
+  ),
+);
 
-class _NavBarItem extends StatelessWidget {
-  final _NavItem item;
-  final bool active;
-  final VoidCallback onTap;
+// ── Nav bar ──────────────────────────────────────────────────────────────────
 
-  const _NavBarItem({
-    required this.item,
-    required this.active,
-    required this.onTap,
-  });
+class _NavBar extends StatelessWidget {
+  final int current;
+  final ValueChanged<int> onTab;
+  final VoidCallback onShare;
+  const _NavBar({required this.current, required this.onTab, required this.onShare});
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        decoration: BoxDecoration(
-          color: active ? AppColors.primaryGlow : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: Icon(
-                active ? item.activeIcon : item.icon,
-                key:   ValueKey(active),
-                size:  22,
-                color: active ? AppColors.primary : AppColors.textHint,
+    final bottom = MediaQuery.of(context).padding.bottom;
+    return Container(
+      color: Colors.black,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Divider(height: 0.5, thickness: 0.5, color: Color(0xFF2C2C2C)),
+          SizedBox(
+            height: 56 + bottom,
+            child: Padding(
+              padding: EdgeInsets.only(bottom: bottom),
+              child: Row(
+                children: [
+                  _Tab(
+                    icon: Icons.person_outline_rounded,
+                    activeIcon: Icons.person_rounded,
+                    label: 'Cards',
+                    active: current == 0,
+                    onTap: () => onTab(0),
+                  ),
+                  _Tab(
+                    icon: Icons.people_outline_rounded,
+                    activeIcon: Icons.people_alt_rounded,
+                    label: 'Contacts',
+                    active: current == 1,
+                    onTap: () => onTab(1),
+                  ),
+                  _Tab(
+                    icon: Icons.ios_share_outlined,
+                    activeIcon: Icons.ios_share,
+                    label: 'Share',
+                    active: false,
+                    onTap: onShare,
+                  ),
+                  _Tab(
+                    icon: Icons.settings_outlined,
+                    activeIcon: Icons.settings_rounded,
+                    label: 'Settings',
+                    active: current == 2,
+                    onTap: () => onTab(2),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 3),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Tab item ─────────────────────────────────────────────────────────────────
+
+class _Tab extends StatefulWidget {
+  final IconData icon, activeIcon;
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+  const _Tab({required this.icon, required this.activeIcon,
+      required this.label, required this.active, required this.onTap});
+  @override State<_Tab> createState() => _TabState();
+}
+
+class _TabState extends State<_Tab> {
+  bool _p = false;
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown:   (_) => setState(() => _p = true),
+      onTapUp:     (_) { setState(() => _p = false); widget.onTap(); },
+      onTapCancel: ()  => setState(() => _p = false),
+      child: AnimatedScale(
+        scale: _p ? 0.82 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              widget.active ? widget.activeIcon : widget.icon,
+              size: 24,
+              color: widget.active ? Colors.white : const Color(0xFF555555),
+            ),
+            const SizedBox(height: 2),
             Text(
-              item.label,
+              widget.label,
               style: TextStyle(
-                fontSize:   10,
-                fontWeight: active ? FontWeight.w700 : FontWeight.w400,
-                color:      active ? AppColors.primary : AppColors.textHint,
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                color: widget.active ? Colors.white : const Color(0xFF555555),
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-// ── Model ─────────────────────────────────────────────────────────────────────
-
-class _NavItem {
-  final String label;
-  final IconData icon;
-  final IconData activeIcon;
-
-  const _NavItem({
-    required this.label,
-    required this.icon,
-    required this.activeIcon,
-  });
+    ),
+  );
 }

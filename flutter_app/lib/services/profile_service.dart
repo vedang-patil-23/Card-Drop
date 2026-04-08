@@ -18,7 +18,7 @@ class ProfileService {
   // ── Public profile URL ─────────────────────────────────────────────────────
 
   /// Change this to your Netlify app URL after deployment
-  static const String netlifyBaseUrl = 'https://your-app.netlify.app';
+  static const String netlifyBaseUrl = 'https://YOUR_SITE.netlify.app';
 
   String profileUrl(String profileId) => '$netlifyBaseUrl/profile/$profileId';
 

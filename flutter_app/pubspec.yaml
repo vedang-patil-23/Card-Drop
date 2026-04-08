@@ -15,7 +15,7 @@ dependencies:
 
   # QR Code generation & scanning
   qr_flutter: ^4.1.0
-  mobile_scanner: ^5.1.1
+  mobile_scanner: ^7.0.0
 
   # Local storage & device identity
   shared_preferences: ^2.3.2
@@ -29,6 +29,7 @@ dependencies:
   # Utilities
   url_launcher: ^6.3.1
   share_plus: ^10.0.0
+  excel: ^4.0.6
   intl: ^0.19.0
 
   # UI / charts / animations

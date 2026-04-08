@@ -10,6 +10,8 @@ class LeadModel {
   final String source;       // 'app' | 'web'
   final DateTime capturedAt;
   final bool isNew;
+  final String eventId;
+  final bool archived;
 
   const LeadModel({
     required this.id,
@@ -22,6 +24,8 @@ class LeadModel {
     this.source       = 'app',
     required this.capturedAt,
     this.isNew        = true,
+    this.eventId      = '',
+    this.archived     = false,
   });
 
   // ── Supabase ───────────────────────────────────────────────────────────────
@@ -37,6 +41,8 @@ class LeadModel {
     source:         row['source']           ?? 'app',
     capturedAt:     DateTime.tryParse(row['captured_at'] ?? '') ?? DateTime.now(),
     isNew:          row['is_new']           ?? true,
+    eventId:        row['event_id']         ?? '',
+    archived:       row['archived']         ?? false,
   );
 
   Map<String, dynamic> toSupabase() => {
@@ -50,6 +56,8 @@ class LeadModel {
     'source':           source,
     'captured_at':      capturedAt.toIso8601String(),
     'is_new':           isNew,
+    'event_id':         eventId,
+    'archived':         archived,
   };
 
   // ── Local JSON ─────────────────────────────────────────────────────────────
@@ -65,6 +73,8 @@ class LeadModel {
     source:         j['source']         ?? 'app',
     capturedAt:     DateTime.tryParse(j['capturedAt'] ?? '') ?? DateTime.now(),
     isNew:          j['isNew']          ?? true,
+    eventId:        j['eventId']        ?? '',
+    archived:       j['archived']       ?? false,
   );
 
   Map<String, dynamic> toJson() => {
@@ -78,18 +88,22 @@ class LeadModel {
     'source':         source,
     'capturedAt':     capturedAt.toIso8601String(),
     'isNew':          isNew,
+    'eventId':        eventId,
+    'archived':       archived,
   };
 
-  LeadModel copyWith({bool? isNew, String? note}) => LeadModel(
+  LeadModel copyWith({bool? isNew, String? note, String? eventId, bool? archived}) => LeadModel(
     id:             id,
     ownerProfileId: ownerProfileId,
     name:           name,
     email:          email,
     phone:          phone,
     organization:   organization,
-    note:           note  ?? this.note,
+    note:           note     ?? this.note,
     source:         source,
     capturedAt:     capturedAt,
-    isNew:          isNew ?? this.isNew,
+    isNew:          isNew    ?? this.isNew,
+    eventId:        eventId  ?? this.eventId,
+    archived:       archived ?? this.archived,
   );
 }

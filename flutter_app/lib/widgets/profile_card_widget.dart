@@ -1,294 +1,320 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../models/profile_model.dart';
-import '../theme/app_theme.dart';
+
+// Shared helper — used by home_screen social strip too
+IconData platformIcon(String id) {
+  const m = {
+    'linkedin':  Icons.work_rounded,
+    'instagram': Icons.camera_alt_rounded,
+    'twitter':   Icons.alternate_email_rounded,
+    'tiktok':    Icons.music_note_rounded,
+    'facebook':  Icons.facebook_rounded,
+    'youtube':   Icons.smart_display_rounded,
+    'github':    Icons.code_rounded,
+    'snapchat':  Icons.chat_bubble_rounded,
+    'website':   Icons.language_rounded,
+    'calendly':  Icons.calendar_today_rounded,
+    'cashapp':   Icons.attach_money_rounded,
+    'venmo':     Icons.payments_rounded,
+  };
+  return m[id] ?? Icons.link_rounded;
+}
 
 class ProfileCardWidget extends StatelessWidget {
   final ProfileModel profile;
+  final String? qrUrl;         // if set, QR is embedded inside the card
   final bool compact;
   final VoidCallback? onTap;
+  final VoidCallback? onMenuTap;
 
   const ProfileCardWidget({
     super.key,
     required this.profile,
+    this.qrUrl,
     this.compact = false,
     this.onTap,
+    this.onMenuTap,
   });
 
-  Color _parseColor(String hex) {
-    try {
-      return Color(int.parse('FF${hex.replaceAll('#', '')}', radix: 16));
-    } catch (_) {
-      return AppColors.primary;
-    }
-  }
-
   @override
-  Widget build(BuildContext context) {
-    final cardColor = _parseColor(profile.profileColor);
+  Widget build(BuildContext context) =>
+      compact ? _buildCompact() : _buildFull();
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          gradient: LinearGradient(
-            colors: [
-              cardColor.withOpacity(0.25),
-              AppColors.surface,
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+  // ── Full POPL-style card ─────────────────────────────────────────────────
+
+  Widget _buildFull() {
+    return Container(
+      clipBehavior: Clip.hardEdge,
+      decoration: BoxDecoration(
+        color: const Color(0xFF1C1C1E),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x55000000),
+            blurRadius: 28,
+            offset: Offset(0, 10),
           ),
-          border: Border.all(
-            color: cardColor.withOpacity(0.4),
-            width: 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: cardColor.withOpacity(0.18),
-              blurRadius: 30,
-              spreadRadius: -4,
-              offset: const Offset(0, 12),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: Stack(
-            children: [
-              // Background glow
-              Positioned(
-                top: -40, right: -40,
-                child: Container(
-                  width: 160, height: 160,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: cardColor.withOpacity(0.12),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Abstract art top section
+          _TopArt(onMenuTap: onMenuTap),
+
+          // ── Name / title / company
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  profile.displayName.isNotEmpty
+                      ? profile.displayName : 'Your Name',
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: -0.3,
                   ),
                 ),
-              ),
-              Padding(
-                padding: compact
-                    ? const EdgeInsets.all(16)
-                    : const EdgeInsets.all(24),
-                child: compact
-                    ? _buildCompact(cardColor)
-                    : _buildFull(cardColor),
-              ),
-            ],
+                if (profile.jobTitle.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(profile.jobTitle,
+                      style: const TextStyle(
+                          fontSize: 14, color: Color(0xFF8E8E93))),
+                ],
+                if (profile.company.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(profile.company,
+                      style: const TextStyle(
+                          fontSize: 14, color: Color(0xFF8E8E93))),
+                ],
+              ],
+            ),
           ),
-        ),
+
+          const SizedBox(height: 18),
+
+          // ── QR embedded in card ─────────────────────────────────────────
+          if (qrUrl != null && qrUrl!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(14, 18, 14, 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2C2C2E),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: const Color(0xFF3A3A3C), width: 0.5),
+                ),
+                child: Column(
+                  children: [
+                    Center(
+                      child: QrImageView(
+                        data: qrUrl!,
+                        version: QrVersions.auto,
+                        size: 190,
+                        backgroundColor: const Color(0xFF2C2C2E),
+                        eyeStyle: const QrEyeStyle(
+                          eyeShape: QrEyeShape.circle,
+                          color: Colors.white,
+                        ),
+                        dataModuleStyle: const QrDataModuleStyle(
+                          dataModuleShape: QrDataModuleShape.circle,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Scan to share card',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF8E8E93),
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            const SizedBox(height: 4),
+        ],
       ),
     );
   }
 
-  Widget _buildFull(Color cardColor) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          children: [
-            _Avatar(
-              photoUrl: profile.photoUrl,
-              name: profile.displayName,
-              color: cardColor,
-              size: 72,
-            ),
-            const Spacer(),
-            _ColorDot(color: cardColor),
-          ],
-        ),
-        const SizedBox(height: 16),
-        if (profile.displayName.isNotEmpty)
-          Text(
-            profile.displayName,
-            style: const TextStyle(
-              fontSize: 22, fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
-        if (profile.jobTitle.isNotEmpty || profile.company.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              [profile.jobTitle, profile.company]
-                  .where((s) => s.isNotEmpty)
-                  .join(' · '),
-              style: const TextStyle(
-                fontSize: 13, color: AppColors.textSecondary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        if (profile.bio.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          Text(
-            profile.bio,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 13, color: AppColors.textSecondary, height: 1.5,
-            ),
-          ),
-        ],
-        if (profile.socialLinks.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          const Divider(color: AppColors.border, height: 1),
-          const SizedBox(height: 14),
-          _SocialLinksRow(links: profile.socialLinks, color: cardColor),
-        ],
-      ],
-    );
-  }
+  // ── Compact variant (used in leads list) ────────────────────────────────
 
-  Widget _buildCompact(Color cardColor) {
-    return Row(
-      children: [
-        _Avatar(
-          photoUrl: profile.photoUrl,
-          name: profile.displayName,
-          color: cardColor,
-          size: 44,
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                profile.displayName.isEmpty ? 'No Name' : profile.displayName,
-                style: const TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              if (profile.jobTitle.isNotEmpty || profile.company.isNotEmpty)
+  Widget _buildCompact() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1C1C1E),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF2C2C2E), width: 0.5),
+      ),
+      child: Row(
+        children: [
+          _CircleAvatar(profile: profile, size: 36),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 Text(
-                  [profile.jobTitle, profile.company]
-                      .where((s) => s.isNotEmpty)
-                      .join(' · '),
+                  profile.displayName.isEmpty ? 'Unknown' : profile.displayName,
                   style: const TextStyle(
-                    fontSize: 12, color: AppColors.textSecondary,
+                    fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
                 ),
-            ],
+                if (profile.jobTitle.isNotEmpty || profile.company.isNotEmpty)
+                  Text(
+                    [profile.jobTitle, profile.company]
+                        .where((s) => s.isNotEmpty).join(' · '),
+                    style: const TextStyle(
+                        fontSize: 12, color: Color(0xFF8E8E93)),
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
           ),
-        ),
-        Icon(Icons.chevron_right_rounded,
-            size: 18, color: AppColors.textHint),
-      ],
+          const Icon(Icons.chevron_right_rounded,
+              size: 16, color: Color(0xFF555555)),
+        ],
+      ),
     );
   }
 }
 
-class _Avatar extends StatelessWidget {
-  final String photoUrl;
-  final String name;
-  final Color color;
-  final double size;
+// ── Top abstract-art section ─────────────────────────────────────────────────
 
-  const _Avatar({
-    required this.photoUrl,
-    required this.name,
-    required this.color,
-    required this.size,
-  });
+class _TopArt extends StatelessWidget {
+  final VoidCallback? onMenuTap;
+  const _TopArt({this.onMenuTap});
 
   @override
   Widget build(BuildContext context) {
-    if (photoUrl.isNotEmpty) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(size / 2),
+    return SizedBox(
+      height: 115,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          CustomPaint(painter: _WavePainter()),
+          // "..." menu — top right
+          if (onMenuTap != null)
+            Positioned(
+              top: 10, right: 10,
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  onMenuTap!();
+                },
+                child: Container(
+                  width: 34, height: 34,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.10),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.more_horiz_rounded,
+                      size: 18, color: Colors.white70),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// Abstract wave shapes — two overlapping bezier blobs
+class _WavePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Blob 1 — left sweep
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, 0)
+        ..lineTo(size.width * 0.58, 0)
+        ..cubicTo(
+          size.width * 0.70, size.height * 0.35,
+          size.width * 0.38, size.height * 0.80,
+          0, size.height * 0.95,
+        )
+        ..close(),
+      Paint()
+        ..color = Colors.white.withOpacity(0.07)
+        ..style = PaintingStyle.fill,
+    );
+
+    // Blob 2 — right corner
+    canvas.drawPath(
+      Path()
+        ..moveTo(size.width * 0.52, 0)
+        ..lineTo(size.width, 0)
+        ..lineTo(size.width, size.height * 0.60)
+        ..cubicTo(
+          size.width * 0.88, size.height * 0.48,
+          size.width * 0.68, size.height * 0.28,
+          size.width * 0.52, 0,
+        )
+        ..close(),
+      Paint()
+        ..color = Colors.white.withOpacity(0.04)
+        ..style = PaintingStyle.fill,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_) => false;
+}
+
+// ── Reusable circle avatar ────────────────────────────────────────────────────
+
+class _CircleAvatar extends StatelessWidget {
+  final ProfileModel profile;
+  final double size;
+  const _CircleAvatar({required this.profile, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    if (profile.photoUrl.isNotEmpty) {
+      return ClipOval(
         child: CachedNetworkImage(
-          imageUrl: photoUrl,
-          width: size, height: size,
-          fit: BoxFit.cover,
-          placeholder: (_, __) => _placeholder(),
-          errorWidget: (_, __, ___) => _placeholder(),
+          imageUrl: profile.photoUrl,
+          width: size, height: size, fit: BoxFit.cover,
+          placeholder: (_, __) => _initials(),
+          errorWidget: (_, __, ___) => _initials(),
         ),
       );
     }
-    return _placeholder();
+    return _initials();
   }
 
-  Widget _placeholder() {
-    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+  Widget _initials() {
+    final ch = profile.displayName.isNotEmpty
+        ? profile.displayName[0].toUpperCase() : '?';
     return Container(
       width: size, height: size,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(
-          colors: [color, color.withOpacity(0.5)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: Color(0xFF3A3A3C),
       ),
       alignment: Alignment.center,
-      child: Text(
-        initial,
-        style: TextStyle(
-          fontSize: size * 0.38,
-          fontWeight: FontWeight.w700,
-          color: Colors.white,
-        ),
-      ),
-    );
-  }
-}
-
-class _ColorDot extends StatelessWidget {
-  final Color color;
-  const _ColorDot({required this.color});
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 10, height: 10,
-    decoration: BoxDecoration(
-      shape: BoxShape.circle,
-      color: color,
-      boxShadow: [
-        BoxShadow(color: color.withOpacity(0.6), blurRadius: 8, spreadRadius: 1),
-      ],
-    ),
-  );
-}
-
-class _SocialLinksRow extends StatelessWidget {
-  final List<SocialLink> links;
-  final Color color;
-  const _SocialLinksRow({required this.links, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    final active = links.where((l) => l.isActive && l.url.isNotEmpty).take(6);
-    return Wrap(
-      spacing: 10,
-      runSpacing: 8,
-      children: active.map((link) {
-        final platform = SocialPlatform.findById(link.platform);
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: color.withOpacity(0.3)),
-          ),
-          child: Text(
-            platform?.label ?? link.platform,
-            style: TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w600,
-              color: color,
-            ),
-          ),
-        );
-      }).toList(),
+      child: Text(ch, style: TextStyle(
+        fontSize: size * 0.38,
+        fontWeight: FontWeight.w600,
+        color: Colors.white70,
+      )),
     );
   }
 }

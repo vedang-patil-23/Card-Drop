@@ -16,14 +16,16 @@ class SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 14),
       child: Row(
         children: [
           Text(
-            title,
+            title.toUpperCase(),
             style: const TextStyle(
-              fontSize: 16, fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textHint,
+              letterSpacing: 1.4,
             ),
           ),
           const Spacer(),
@@ -33,7 +35,8 @@ class SectionHeader extends StatelessWidget {
               child: Text(
                 actionLabel!,
                 style: const TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
                   color: AppColors.primary,
                 ),
               ),

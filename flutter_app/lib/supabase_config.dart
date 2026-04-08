@@ -3,15 +3,12 @@
 // └──────────────────────────────────────────────────────────────────────┘
 
 class SupabaseConfig {
-  /// Project URL
-  static const String url = 'https://lgpyigmxoddhqmkpkfvf.supabase.co';
+  /// Project URL — replace with your Supabase project URL
+  static const String url = 'https://YOUR_PROJECT_REF.supabase.co';
 
-  /// Anon public key
-  static const String anonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
-      '.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxncHlpZ214b2RkaHFta3BrZnZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNDM2NjgsImV4cCI6MjA4OTkxOTY2OH0'
-      '.BpytTQPxd8PL6Y0U4bi9ptohWamF3y9Zgr0EZ6qxeq4';
+  /// Anon public key — replace with your Supabase anon key
+  static const String anonKey = 'YOUR_SUPABASE_ANON_KEY';
 
-  /// Netlify public profile base URL
-  static const String netlifyBaseUrl = 'https://carddrop-profile.netlify.app';
+  /// Netlify public profile base URL — replace with your deployed URL
+  static const String netlifyBaseUrl = 'https://YOUR_SITE.netlify.app';
 }

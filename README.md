@@ -1,78 +1,59 @@
-# CardDrop — POPL Alternative
+# CardDrop
 
-A full-featured digital business card & networking app — iOS (Flutter) + Netlify public profile page.
-**Backend: Supabase (PostgreSQL) — 100% free tier.**
+Open-source digital business card app. Create your card, share via QR or link, capture contacts at events, and track who viewed your profile.
+
+Flutter (iOS/macOS) + Supabase + Netlify. Entirely free tier.
 
 ---
 
-## 🗂 Project Structure
+## Features
+
+- Profile card with photo, bio, job title, company
+- 12 social platforms (LinkedIn, Instagram, Twitter, GitHub, etc.)
+- QR code sharing — online (link) or offline (embedded vCard)
+- Public profile page hosted on Netlify
+- Contact management with event categorization
+- Swipe right to delete, swipe left to archive
+- XLSX export — all contacts or filtered by event
+- Visitor analytics — total views, devices, contact saves
+- In-app card preview
+- vCard file sharing for offline use
+- Dark minimal UI
+
+---
+
+## Project Structure
 
 ```
-popl_alternative/
-├── flutter_app/              ← iOS app (Flutter + Supabase)
-│   ├── lib/
-│   │   ├── main.dart
-│   │   ├── supabase_config.dart     ← paste your credentials here
-│   │   ├── theme/
-│   │   ├── models/
-│   │   ├── services/
-│   │   │   ├── supabase_service.dart
-│   │   │   ├── profile_service.dart
-│   │   │   └── contacts_service.dart
-│   │   ├── screens/
-│   │   └── widgets/
-│   ├── ios/Runner/Info.plist        ← camera/photo permissions
-│   └── pubspec.yaml
-└── netlify_profile/          ← Public profile web page (React + Vite + Supabase)
-    ├── src/
-    │   ├── supabase/client.js       ← paste your credentials here
-    │   └── components/
-    ├── netlify.toml
-    └── package.json
+flutter_app/            # iOS/macOS app (Flutter)
+  lib/
+    models/             # LeadModel, EventModel, ProfileModel, etc.
+    services/           # SupabaseService, ProfileService
+    screens/            # Home, Contacts, Share, Settings, Analytics, etc.
+    widgets/            # ProfileCardWidget
+    theme/              # AppTheme, colors
+    supabase_config.dart  # Your credentials here
+
+netlify_profile/        # Public profile web page (React + Vite)
+  src/
+    components/         # ProfilePage.jsx
+    supabase/           # client.js
+  .env.example          # Credential template
+
+supabase/migrations/    # SQL migrations
 ```
 
 ---
 
-## ✅ Features
+## Setup
 
-| Feature | Status |
-|---|---|
-| Digital profile card (photo, bio, links) | ✅ |
-| 8 card color themes | ✅ |
-| 12 social platform links | ✅ |
-| QR code generation | ✅ |
-| QR code scanning (camera) | ✅ |
-| Contact wallet (save scanned contacts) | ✅ |
-| vCard / .vcf export | ✅ |
-| Lead capture form (in-app) | ✅ |
-| Lead capture form (web page) | ✅ |
-| Analytics dashboard + 30-day chart | ✅ |
-| Public Netlify profile page | ✅ |
-| "Save Contact" on web page | ✅ |
-| Supabase real-time sync | ✅ |
-| No sign-in required | ✅ |
-| Dark sleek UI | ✅ |
+### 1. Supabase
 
----
-
-## 🚀 Setup Guide
-
-### Step 1 — Create Supabase Project
-
-1. Go to [supabase.com](https://supabase.com) → **New project**
-2. Name it (e.g. `carddrop`) and set a database password
-3. Wait ~1 min for provisioning
-
----
-
-### Step 2 — Create Database Tables
-
-In your Supabase project → **SQL Editor** → paste and run:
+Create a project at [supabase.com](https://supabase.com), then run in SQL Editor:
 
 ```sql
--- Profiles
 CREATE TABLE profiles (
-  id            UUID PRIMARY KEY,
+  id            TEXT PRIMARY KEY,
   display_name  TEXT DEFAULT '',
   job_title     TEXT DEFAULT '',
   company       TEXT DEFAULT '',
@@ -87,10 +68,9 @@ CREATE TABLE profiles (
   updated_at    TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Leads
 CREATE TABLE leads (
-  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  owner_profile_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  id               TEXT PRIMARY KEY,
+  owner_profile_id TEXT NOT NULL,
   name             TEXT DEFAULT '',
   email            TEXT DEFAULT '',
   phone            TEXT DEFAULT '',
@@ -98,14 +78,34 @@ CREATE TABLE leads (
   note             TEXT DEFAULT '',
   source           TEXT DEFAULT 'app',
   captured_at      TIMESTAMPTZ DEFAULT NOW(),
-  is_new           BOOLEAN DEFAULT TRUE
+  is_new           BOOLEAN DEFAULT TRUE,
+  event_id         TEXT DEFAULT '',
+  archived         BOOLEAN DEFAULT FALSE
 );
 
--- Contacts (saved from scanning)
+CREATE TABLE events (
+  id               TEXT PRIMARY KEY,
+  owner_profile_id TEXT NOT NULL,
+  name             TEXT NOT NULL,
+  created_at       TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE profile_views (
+  id             TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  profile_id     TEXT NOT NULL,
+  source         TEXT DEFAULT 'qr',
+  country        TEXT DEFAULT '',
+  viewed_at      TIMESTAMPTZ DEFAULT NOW(),
+  ip_address     TEXT DEFAULT '',
+  device_name    TEXT DEFAULT '',
+  user_agent     TEXT DEFAULT '',
+  contact_saved  BOOLEAN DEFAULT FALSE
+);
+
 CREATE TABLE contacts (
-  id               UUID PRIMARY KEY,
-  owner_profile_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-  profile_id       UUID,
+  id               TEXT PRIMARY KEY,
+  owner_profile_id TEXT NOT NULL,
+  profile_id       TEXT,
   display_name     TEXT DEFAULT '',
   job_title        TEXT DEFAULT '',
   company          TEXT DEFAULT '',
@@ -118,43 +118,20 @@ CREATE TABLE contacts (
   note             TEXT DEFAULT ''
 );
 
--- Profile views (analytics)
-CREATE TABLE profile_views (
-  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  profile_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-  source     TEXT DEFAULT 'qr',
-  country    TEXT DEFAULT '',
-  viewed_at  TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
----
-
-### Step 3 — Enable Row Level Security (RLS)
-
-Run this in SQL Editor to allow public read/write (no auth required):
-
-```sql
--- Allow all operations on each table (no auth app)
-ALTER TABLE profiles     ENABLE ROW LEVEL SECURITY;
-ALTER TABLE leads        ENABLE ROW LEVEL SECURITY;
-ALTER TABLE contacts     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profiles      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE leads         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE events        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contacts      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profile_views ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "public access" ON profiles      FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "public access" ON leads         FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "public access" ON contacts      FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "public access" ON profile_views FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "open" ON profiles      FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "open" ON leads         FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "open" ON events        FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "open" ON contacts      FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "open" ON profile_views FOR ALL USING (true) WITH CHECK (true);
 ```
 
----
-
-### Step 4 — Create Storage Bucket
-
-1. Supabase dashboard → **Storage** → **New bucket**
-2. Name: `profile-photos`
-3. Check ✅ **Public bucket**
-4. In SQL Editor, add storage policy:
+Create a storage bucket named `profile-photos` (public), then:
 
 ```sql
 CREATE POLICY "public access" ON storage.objects
@@ -162,28 +139,19 @@ CREATE POLICY "public access" ON storage.objects
   WITH CHECK (bucket_id = 'profile-photos');
 ```
 
----
+### 2. Flutter App
 
-### Step 5 — Get Your API Credentials
-
-Supabase dashboard → **Settings** → **API**:
-- Copy **Project URL** (looks like `https://abcdef.supabase.co`)
-- Copy **anon public** key
-
----
-
-### Step 6 — Configure Flutter App
-
-Paste into `flutter_app/lib/supabase_config.dart`:
+Edit `flutter_app/lib/supabase_config.dart` with your credentials:
 
 ```dart
 class SupabaseConfig {
-  static const String url     = 'https://YOUR_PROJECT_ID.supabase.co';
-  static const String anonKey = 'YOUR_ANON_PUBLIC_KEY';
+  static const String url = 'https://YOUR_PROJECT.supabase.co';
+  static const String anonKey = 'YOUR_ANON_KEY';
+  static const String netlifyBaseUrl = 'https://YOUR_SITE.netlify.app';
 }
 ```
 
-Then install packages and run:
+Also update the Netlify URL in `flutter_app/lib/services/profile_service.dart`.
 
 ```bash
 cd flutter_app
@@ -191,84 +159,48 @@ flutter pub get
 flutter run
 ```
 
----
+### 3. Netlify Profile Page
 
-### Step 7 — Deploy Netlify Profile Page
-
-1. Paste credentials into `netlify_profile/src/supabase/client.js`:
-
-```js
-const SUPABASE_URL      = 'https://YOUR_PROJECT_ID.supabase.co'
-const SUPABASE_ANON_KEY = 'YOUR_ANON_PUBLIC_KEY'
+```bash
+cd netlify_profile
+cp .env.example .env
+# Fill in your Supabase URL and anon key
+npm install
+npm run dev
 ```
 
-2. Push `netlify_profile/` to a GitHub repo
-3. Go to [app.netlify.com](https://app.netlify.com) → **Add new site → Import from Git**
-4. Build settings (auto-detected):
-   - **Build command:** `npm run build`
-   - **Publish directory:** `dist`
-5. Deploy and copy your URL (e.g. `https://carddrop.netlify.app`)
+Deploy to Netlify: build command `npm run build`, publish directory `dist`. Add the env vars from `.env` in Netlify dashboard.
 
 ---
 
-### Step 8 — Connect Netlify URL to Flutter
+## How It Works
 
-In `flutter_app/lib/services/profile_service.dart`:
-
-```dart
-static const String netlifyBaseUrl = 'https://YOUR-SITE.netlify.app';
-```
-
-Re-run the Flutter app — your QR codes now point to the live Netlify page!
+1. Create a profile in the app with your info and social links
+2. Share your QR code or link with someone
+3. They see your public profile page on Netlify
+4. They can save your contact (downloads .vcf) or share their info back
+5. You see the view in Analytics and their details in Contacts
+6. Categorize contacts by event and export to XLSX
 
 ---
 
-## 📱 App Screens
+## Tech Stack
 
-| Screen | Description |
+| | |
 |---|---|
-| **Card** | Your digital card, share & copy link |
-| **QR** | Your QR code + live camera scanner |
-| **Contacts** | Saved contacts (swipe to delete, vCard export) |
-| **Leads** | Capture leads form + leads inbox with "New" badges |
-| **Analytics** | Views chart, stats, source breakdown |
+| App | Flutter 3 (iOS/macOS) |
+| Database | Supabase (PostgreSQL) |
+| Storage | Supabase Storage |
+| Public Page | React 18 + Vite |
+| Hosting | Netlify |
+| QR | qr_flutter |
+| Charts | fl_chart |
+| Export | excel (XLSX) |
+
+All free tier.
 
 ---
 
-## 🌐 Public Profile Web Page
+## License
 
-When someone scans your QR code:
-
-- Full profile card (photo, name, bio, social links)
-- **"Save Contact"** → downloads `.vcf` file
-- **"Share My Info"** → lead capture form → syncs to your Leads tab
-- Mobile-responsive, dark design, hosted free on Netlify
-
-URL format: `https://your-site.netlify.app/profile/{uuid}`
-
----
-
-## 🛠 Tech Stack
-
-| Layer | Tech | Cost |
-|---|---|---|
-| Mobile App | Flutter 3 (Dart) — iOS | Free |
-| Database | Supabase (PostgreSQL) | Free tier |
-| Storage | Supabase Storage | Free tier |
-| QR Generate | qr_flutter | Free |
-| QR Scan | mobile_scanner | Free |
-| Charts | fl_chart | Free |
-| Public Page | React 18 + Vite | Free |
-| Hosting | Netlify | Free tier |
-| Fonts | Google Fonts — Inter | Free |
-
----
-
-## 💡 Roadmap
-
-- [ ] NFC tap sharing (iOS Core NFC)
-- [ ] CSV export of leads
-- [ ] Multiple profiles per device
-- [ ] Team / business accounts
-- [ ] Push notifications for new leads
-- [ ] Apple Sign-In for App Store submission
+MIT

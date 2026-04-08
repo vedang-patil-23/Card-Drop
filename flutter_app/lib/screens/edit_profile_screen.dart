@@ -5,7 +5,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../models/profile_model.dart';
 import '../services/profile_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/gradient_button.dart';
 import '../widgets/app_text_field.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -27,14 +26,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _websiteCt = TextEditingController();
 
   late List<SocialLink> _links;
-  String _profileColor = '#6C63FF';
   File?  _pendingPhoto;
   bool   _saving = false;
-
-  static const List<String> _colorOptions = [
-    '#6C63FF', '#00D4FF', '#FF6B6B', '#00E676',
-    '#FFD93D', '#FF6B9D', '#C77DFF', '#4ECDC4',
-  ];
 
   @override
   void initState() {
@@ -47,8 +40,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _emailCt.text   = p.email;
     _phoneCt.text   = p.phone;
     _websiteCt.text = p.website;
-    _links          = List.from(p.socialLinks);
-    _profileColor   = p.profileColor;
+    _links = List.from(p.socialLinks);
   }
 
   @override
@@ -84,8 +76,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         email:        _emailCt.text.trim(),
         phone:        _phoneCt.text.trim(),
         website:      _websiteCt.text.trim(),
-        profileColor: _profileColor,
-        socialLinks:  _links.where((l) => l.url.isNotEmpty).toList(),
+        socialLinks: _links.where((l) => l.url.isNotEmpty).toList(),
       );
 
       if (_pendingPhoto != null) {
@@ -120,13 +111,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: GradientButton(
-              label: 'Save',
-              onTap: _save,
-              loading: _saving,
-              height: 36,
-              borderRadius: 10,
+            padding: const EdgeInsets.only(right: 12),
+            child: TextButton(
+              onPressed: _saving ? null : _save,
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+              child: _saving
+                  ? const SizedBox(
+                      width: 16, height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 1.5, color: Colors.white),
+                    )
+                  : const Text('Save',
+                      style: TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w600,
+                          color: Colors.white)),
             ),
           ),
         ],
@@ -137,8 +138,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           padding: const EdgeInsets.all(20),
           children: [
             _buildPhotoSection(),
-            const SizedBox(height: 24),
-            _buildColorPicker(),
             const SizedBox(height: 28),
             _sectionTitle('Basic Info'),
             const SizedBox(height: 12),
@@ -183,11 +182,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  Widget _sectionTitle(String title) => Text(
-    title,
-    style: const TextStyle(
-      fontSize: 14, fontWeight: FontWeight.w700,
-      color: AppColors.textSecondary, letterSpacing: 0.8,
+  Widget _sectionTitle(String title) => Padding(
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Text(
+      title.toUpperCase(),
+      style: const TextStyle(
+        fontSize: 11, fontWeight: FontWeight.w600,
+        color: AppColors.textHint, letterSpacing: 1.4,
+      ),
     ),
   );
 
@@ -226,11 +228,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 width: 30, height: 30,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: AppColors.primaryGradient,
+                  color: const Color(0xFF3A3A3C),
                   border: Border.all(color: AppColors.background, width: 2),
                 ),
-                child: const Icon(Icons.camera_alt_rounded,
-                    size: 14, color: Colors.white),
+                child: const Icon(Icons.photo_library_outlined,
+                    size: 13, color: Colors.white),
               ),
             ),
           ),
@@ -239,50 +241,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  Widget _buildColorPicker() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Card Color',
-          style: TextStyle(
-            fontSize: 14, fontWeight: FontWeight.w700,
-            color: AppColors.textSecondary, letterSpacing: 0.8,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: _colorOptions.map((hex) {
-            final color = Color(
-              int.parse('FF${hex.replaceAll('#', '')}', radix: 16));
-            final selected = _profileColor == hex;
-            return GestureDetector(
-              onTap: () => setState(() => _profileColor = hex),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: 32, height: 32,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: color,
-                  border: selected
-                      ? Border.all(color: Colors.white, width: 2.5)
-                      : null,
-                  boxShadow: selected
-                      ? [BoxShadow(color: color.withOpacity(0.6), blurRadius: 10)]
-                      : null,
-                ),
-                child: selected
-                    ? const Icon(Icons.check_rounded,
-                        size: 14, color: Colors.white)
-                    : null,
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
 }
 
 // ── Social Links Editor ────────────────────────────────────────────────────────
